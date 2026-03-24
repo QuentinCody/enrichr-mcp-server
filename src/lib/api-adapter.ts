@@ -43,13 +43,14 @@ export function createEnrichrApiFetch(): ApiFetchFn {
 			throw error;
 		}
 
-		const contentType = response.headers.get("content-type") || "";
-		if (!contentType.includes("json")) {
-			const text = await response.text();
+		// Enrichr may not set Content-Type header — try JSON parse first
+		const text = await response.text();
+		let data: unknown;
+		try {
+			data = JSON.parse(text);
+		} catch {
 			return { status: response.status, data: text };
 		}
-
-		let data = await response.json();
 
 		// Transform enrichment results from positional arrays to named objects
 		if (path.startsWith("/enrich") && data && typeof data === "object") {
