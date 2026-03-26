@@ -13,7 +13,7 @@ interface EnrichrEnv {
 }
 
 export class MyMCP extends McpAgent {
-	server: any = new McpServer({
+	server = new McpServer({
 		name: "enrichr",
 		version: "0.1.0",
 	});
