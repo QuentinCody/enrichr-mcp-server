@@ -22,6 +22,8 @@ export function registerCodeMode(server: McpServer, env: CodeModeEnv): void {
 
 	const executeTool = createExecuteTool({
 		prefix: "enrichr",
+		// Verifiable provenance: enrichr_execute results carry a _meta.citation.
+		source: { id: "enrichr", name: "Enrichr", url: "https://maayanlab.cloud/Enrichr" },
 		catalog: enrichrCatalog,
 		apiFetch,
 		doNamespace: env.ENRICHR_DATA_DO,
