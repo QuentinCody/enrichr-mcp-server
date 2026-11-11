@@ -1,27 +1,23 @@
 import type { ApiCatalog } from "@bio-mcp/shared/codemode/catalog";
+import { additionalEndpoints, workflows } from "./workflows";
 
 export const enrichrCatalog: ApiCatalog = {
 	name: "Enrichr",
 	baseUrl: "https://maayanlab.cloud/Enrichr",
-	version: "3.0",
-	auth: "none",
-	endpointCount: 4,
-	notes:
-		"- Gene set enrichment analysis tool from Ma'ayan Lab\n" +
-		"- 225+ gene set libraries organized in 8 categories (pathways, ontologies, diseases, drugs, cell types, transcription, legacy)\n" +
-		"- Workflow: POST /addList to submit genes → get userListId → GET /enrich with library name\n" +
-		"- For /addList via Code Mode: use api.post('/addList', {list: 'BRCA1\\nTP53\\nEGFR', description: 'my genes'})\n" +
-		"- The adapter transforms /enrich array results into named objects with rank, term_name, p_value, z_score, combined_score, overlapping_genes, adjusted_p_value\n" +
-		"- Key libraries: KEGG_2021_Human, GO_Biological_Process_2023, GO_Molecular_Function_2023, GO_Cellular_Component_2023\n" +
-		"- WikiPathway_2023_Human, Reactome_2022, BioPlanet_2019\n" +
-		"- Drug/perturbation: LINCS_L1000_Chem_Pert_Consensus_Sigs, DSigDB, Drug_Perturbations_from_GEO_down/up\n" +
-		"- Disease: DisGeNET, OMIM_Disease, Jensen_DISEASES, ClinVar_2019\n" +
-		"- Cell type: CellMarker_2024, PanglaoDB_Augmented_2021, Tabula_Sapiens\n" +
-		"- Transcription: ENCODE_and_ChEA_Consensus_TFs, ChEA_2022, TRRUST_Transcription_Factors_2019\n" +
-		"- CRISPR: CRISPRi_Perturbations, PerturbAtlas_2025\n" +
-		"- No authentication required, no documented rate limits\n" +
-		"- Results can be very large for some libraries (33K+ terms for LINCS) — will be auto-staged",
+  version: "runtime library discovery",
+  auth: "none",
+  endpointCount: 9,
+  workflows,
+  notes: "Discover exact library names with /datasetStatistics; do not assume a remembered year is available or immutable. " +
+    "The original four Enrichr routes remain; /speedrichr/* routes use the separate provider Speedrichr service. " +
+    "Submit user lists separately to each backend; their identifiers are not interchangeable. Custom backgrounds use Speedrichr. " +
+    "Library metadata comes from Enrichr, not a verified Speedrichr snapshot. Use /libraries/snapshot to capture bounded GMT content and its SHA-256. " +
+    "Classic /enrich accepts adapter-only expected_library_sha256 in params; before/after GMT checks detect observed differences but do not prove an atomic analysis snapshot. " +
+    "Current provider documentation identifies column four as odds_ratio for both backends. Classic z_score is a deprecated numeric alias retained for compatibility, not a computed Z-score. " +
+    "Results preserve raw_values and overlapping_genes_raw. Bare Infinity/-Infinity/NaN numeric tokens are explicit {nonfinite: token} objects; _enrichr_transport retains exact native text, SHA-256 and token offsets. Never treat these markers as zero/null/finite values. " +
+    "Return entire API objects or staging/error handles. No .data wrapper. Results over 30 KiB stage automatically.",
 	endpoints: [
+    ...additionalEndpoints,
 		{
 			method: "POST",
 			path: "/addList",
@@ -40,7 +36,7 @@ export const enrichrCatalog: ApiCatalog = {
 				"Use api.post('/addList', {list: 'BRCA1\\nTP53\\nEGFR\\nMYC', description: 'my query'}). " +
 				"The list parameter is newline-separated gene symbols. Returns {shortId, userListId}.",
 			example:
-				"const result = await api.post('/addList', {list: 'BRCA1\\nTP53\\nEGFR\\nMYC', description: 'tumor suppressors'});",
+				"return await api.post('/addList', {list: 'BRCA1\\nTP53\\nEGFR\\nMYC', description: 'tumor suppressors'});",
 		},
 		{
 			method: "GET",
@@ -57,7 +53,7 @@ export const enrichrCatalog: ApiCatalog = {
 				},
 			],
 			example:
-				"const genes = await api.get('/view', {userListId: 12345});",
+				"return await api.get('/view', {userListId: 12345});",
 		},
 		{
 			method: "GET",
@@ -66,10 +62,11 @@ export const enrichrCatalog: ApiCatalog = {
 				"Run enrichment analysis against a specific gene set library. Results are transformed from positional arrays into named objects.",
 			description:
 				"Requires a userListId from /addList. backgroundType is the library name (e.g. 'KEGG_2021_Human'). " +
-				"The adapter transforms the raw array format into objects with: rank, term_name, p_value, z_score, " +
-				"combined_score, overlapping_genes, adjusted_p_value. Results keyed by library name.",
+				"The adapter transforms the raw array format into objects with: rank, term_name, p_value, odds_ratio (legacy z_score alias), " +
+				"combined_score, overlapping_genes, adjusted_p_value, raw_values and overlapping_genes_raw. Results keyed by exact library name; _enrichr preserves metadata/context.",
 			category: "enrichment",
 			queryParams: [
+        { name: "expected_library_sha256", type: "string", required: false, description: "Adapter-only GMT content digest from /libraries/snapshot; checked before and after analysis. Does not guarantee an atomic provider snapshot." },
 				{
 					name: "userListId",
 					type: "number",
@@ -85,7 +82,7 @@ export const enrichrCatalog: ApiCatalog = {
 				},
 			],
 			example:
-				"const enrichment = await api.get('/enrich', {userListId: 12345, backgroundType: 'KEGG_2021_Human'});",
+				"return await api.get('/enrich', {userListId: 12345, backgroundType: 'KEGG_2021_Human'});",
 		},
 		{
 			method: "GET",
@@ -97,7 +94,7 @@ export const enrichrCatalog: ApiCatalog = {
 				"Use this to discover available library names for the /enrich endpoint.",
 			category: "libraries",
 			example:
-				"const stats = await api.get('/datasetStatistics');",
+				"return await api.get('/datasetStatistics');",
 		},
 	],
 };
